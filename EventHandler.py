@@ -5,6 +5,7 @@ import pprint
 import sseclient
 import requests
 import LedAnimation
+import time
 
 def with_urllib3(url):
     import urllib3
@@ -42,24 +43,38 @@ def event_loop():
         handle_event(quiz_event, score)
 
 def handle_event(quiz_event, score):
-    print("Receveived quiz_event=" + quiz_event + " with score " + str(score))
-    if (quiz_event is 'start'):
+    print("Receveived quiz_event=" + quiz_event + " with score=" + str(score))
+    quiz_event = '' + quiz_event
+    print(len(quiz_event))
+    if quiz_event == 'start':
         print("start")
-        LedAnimation.led_idle_start()
-    elif (quiz_event is 'end'):
-        print("end")
         LedAnimation.led_idle_stop()
-    elif (quiz_event is 'correct'):
+        LedAnimation.led_busy_start()
+
+    elif quiz_event == 'end':
+        print("end")
+        LedAnimation.led_idle_start()
+
+    elif quiz_event == 'correct':
         print("correct")
+        LedAnimation.led_busy_stop()
         LedAnimation.led_event_correct()
-    elif (quiz_event is 'incorrect'):
+        LedAnimation.led_show_score_ani(score)
+	time.sleep(2)
+        LedAnimation.led_busy_start()
+
+    elif quiz_event == 'incorrect':
         print("incorrect")
+        LedAnimation.led_busy_stop()
         LedAnimation.led_event_incorrect()
+        LedAnimation.led_show_score_ani(score)
+	time.sleep(2)
+        LedAnimation.led_busy_start()
     else:
         print("Warning: unknown event received")
     print("Event processing done.")
 
 LedAnimation.led_setup()
+LedAnimation.led_idle_start()
 
 event_loop()
-

@@ -10,29 +10,127 @@ import thread
 
 strip = None
 
-led_show_idle = 0
+led_background_task = 0 # 1=busy 2=idle
+
+def led_test_idle_stop():
+    global led_background_task
+
+    if led_background_task != 2:
+        return 1
+    else:
+        return 0
+
+## start copy & paste
+# if led_test_idle_stop(): return # PATCH
+
+# Define functions which animate LEDs in various ways.
+def colorWipe(strip, color, wait_ms=50):
+    """Wipe color across display a pixel at a time."""
+    for i in range(strip.numPixels()):
+        strip.setPixelColor(i, color)
+        strip.show()
+        if led_test_idle_stop(): return # PATCH
+        time.sleep(wait_ms/1000.0)
+
+def theaterChase(strip, color, wait_ms=50, iterations=10):
+    """Movie theater light style chaser animation."""
+    for j in range(iterations):
+        for q in range(3):
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i+q, color)
+            strip.show()
+            if led_test_idle_stop(): return # PATCH
+            time.sleep(wait_ms/1000.0)
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i+q, 0)
+
+def wheel(pos):
+    """Generate rainbow colors across 0-255 positions."""
+    if pos < 85:
+        return Color(pos * 3, 255 - pos * 3, 0)
+    elif pos < 170:
+        pos -= 85
+        return Color(255 - pos * 3, 0, pos * 3)
+    else:
+        pos -= 170
+        return Color(0, pos * 3, 255 - pos * 3)
+
+def rainbow(strip, wait_ms=20, iterations=1):
+    """Draw rainbow that fades across all pixels at once."""
+    for j in range(256*iterations):
+        for i in range(strip.numPixels()):
+            strip.setPixelColor(i, wheel((i+j) & 255))
+        strip.show()
+        if led_test_idle_stop(): return # PATCH
+        time.sleep(wait_ms/1000.0)
+
+def rainbowCycle(strip, wait_ms=20, iterations=5):
+    """Draw rainbow that uniformly distributes itself across all pixels."""
+    for j in range(256*iterations):
+        for i in range(strip.numPixels()):
+            strip.setPixelColor(i, wheel((int(i * 256 / strip.numPixels()) + j) & 255))
+        strip.show()
+        if led_test_idle_stop(): return # PATCH
+        time.sleep(wait_ms/1000.0)
+
+def theaterChaseRainbow(strip, wait_ms=50):
+    """Rainbow movie theater light style chaser animation."""
+    for j in range(256):
+        for q in range(3):
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i+q, wheel((i+j) % 255))
+            strip.show()
+            if led_test_idle_stop(): return # PATCH
+            time.sleep(wait_ms/1000.0)
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i+q, 0)
+
+
+
+## end copy & paste
+
+
+def led_idle_animation():
+    global strip
+    
+    while True:
+        print('running idle')
+        theaterChase(strip, Color(127, 127, 127))  # White theater chase
+        if led_test_idle_stop(): return
+        theaterChase(strip, Color(127,   0,   0))  # Red theater chase
+        if led_test_idle_stop(): return
+        theaterChase(strip, Color(  0,   0, 127))  # Blue theater chase
+        if led_test_idle_stop(): return
+        rainbow(strip)
+        if led_test_idle_stop(): return
+        rainbowCycle(strip)
+        if led_test_idle_stop(): return
+        theaterChaseRainbow(strip)
 
 def led_idle_thread() :
     global strip
-    global led_show_idle
+    global led_background_task
     
     print('in idle thread')
 
     while True:
-        if led_show_idle > 0 :
+        if led_background_task == 1 :
             #print('gaga')
-            led_idle_step()
+            led_busy_step()
             time.sleep(0.03)
+        elif led_background_task == 2 :
+            led_idle_animation()
+            print('idle stopped')
         else:
             time.sleep(0.5)
 
 def led_atexit() :
     global strip
-    global led_show_idle
+    global led_background_task
 
     print('led atexit')
 
-    led_show_idle = 0
+    led_background_task = 0
     led_set_color(Color(0, 0, 0))
     
     
@@ -127,38 +225,54 @@ def led_show_score(num):
         led_show_score_ani(i)
         time.sleep(0.25)
 
-led_last_idle_index = 0
+led_last_busy_index = 0
 
-def led_idle_step() :
-    global led_last_idle_index
+def led_busy_step() :
+    global led_last_busy_index
     global strip
 
-    strip.setPixelColor(led_last_idle_index, Color(0,0,0))
-    led_last_idle_index += 1;
-    if ( led_last_idle_index >= strip.numPixels() ) :
-        led_last_idle_index = 0
-    strip.setPixelColor(led_last_idle_index, Color(0,0,255))
+    strip.setPixelColor(led_last_busy_index, Color(0,0,0))
+    led_last_busy_index += 1;
+    if ( led_last_busy_index >= strip.numPixels() ) :
+        led_last_busy_index = 0
+    strip.setPixelColor(led_last_busy_index, Color(0,0,255))
     strip.show()
 
-def led_idle_demo() :
+def led_busy_demo() :
     for i in range(0,500) :
-        led_idle_step()
+        led_busy_step()
         time.sleep(0.03)
 
+def led_busy_start() :
+    global led_background_task
+    led_background_task = 1
+
+def led_busy_stop() :
+    global led_background_task
+    led_background_task = 0
+    time.sleep(0.1)
+    strip.setPixelColor(led_last_busy_index, Color(0,0,0))
+
 def led_idle_start() :
-    global led_show_idle
-    led_show_idle = 1
+    global led_background_task
+    led_background_task = 2
 
 def led_idle_stop() :
-    global led_show_idle
-    led_show_idle = 0
-    time.sleep(0.1)
-    strip.setPixelColor(led_last_idle_index, Color(0,0,0))
+    global led_background_task
+    led_background_task = 0
+    led_set_color(Color(0, 0, 0))
 
-def led_idle_demo_thread() :
+
+def led_busy_demo_thread() :
+
+    led_busy_start()
+    time.sleep(5)
+    led_busy_stop()
+
+def led_idle_demo() :
 
     led_idle_start()
-    time.sleep(5)
+    time.sleep(20)
     led_idle_stop()
 
 
@@ -173,10 +287,11 @@ if __name__ == '__main__':
 
     #led_show_score(5)
 
-    #led_idle_demo()
-    led_idle_demo_thread()
+    #led_busy_demo()
+    #led_busy_demo_thread()
     
-        
+    led_idle_demo()
+
     time.sleep(2)
 
 
