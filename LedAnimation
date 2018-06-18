@@ -1,0 +1,184 @@
+#!/usr/bin/env python
+
+# sudo PYTHONPATH=../rpi_ws281x/python:../rpi_ws281x/python/build/lib.linux-armv7l-2.7 python ./LedAnimation
+
+from neopixel import *
+
+import atexit
+import time
+import thread
+
+strip = None
+
+led_show_idle = 0
+
+def led_idle_thread() :
+    global strip
+    global led_show_idle
+    
+    print('in idle thread')
+
+    while True:
+        if led_show_idle > 0 :
+            #print('gaga')
+            led_idle_step()
+            time.sleep(0.03)
+        else:
+            time.sleep(0.5)
+
+def led_atexit() :
+    global strip
+    global led_show_idle
+
+    print('led atexit')
+
+    led_show_idle = 0
+    led_set_color(Color(0, 0, 0))
+    
+    
+def led_setup() :
+    global strip
+    LED_COUNT      = 60      # Number of LED pixels.
+    LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
+    #LED_PIN        = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
+    LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
+    LED_DMA        = 10      # DMA channel to use for generating signal (try 10)
+    LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
+    LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
+    LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
+
+    strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+    # Intialize the library (must be called once before other functions).
+    strip.begin()
+    led_set_color(Color(0, 0, 0))
+
+    print ('Strip ready')
+    atexit.register(led_atexit)
+    thread.start_new_thread( led_idle_thread, () )
+    
+
+def led_set_color(color):
+    for i in range(strip.numPixels()):
+        strip.setPixelColor(i, color)
+    strip.show()
+
+def led_demo():
+    global strip
+    print ('Strip demo')
+    wait_ms = 300
+    for i in range(strip.numPixels()):
+        strip.setPixelColor(i, Color(0, 0, 255)) # green,red,blue
+        time.sleep(wait_ms/1000.0)
+        strip.show()
+
+def led_flash(color) :
+    wait_ms = 80
+    for j in range(0,10):
+        led_set_color(Color(0, 0, 0))
+        time.sleep(wait_ms/1000.0)
+        led_set_color(color)
+        time.sleep(wait_ms/1000.0)
+    led_set_color(Color(0, 0, 0))
+        
+def led_event_incorrect() :
+    led_flash(Color(0, 255, 0))
+
+def led_event_correct() :
+    led_flash(Color(255, 0, 0))
+
+
+def led_show_score_ani(num):
+    print('show score ani')
+    print(num)
+
+    COLOR_BLACK = Color(0,0,0)
+    COLOR_LEFT = Color(255,0,0)
+    COLOR_RIGHT = Color(0,255,0)
+
+    LEFT_START = 30
+    RIGH_START = 29
+    LEFT_DIRECTION = 1
+    RIGHT_DIRECTION = -1
+
+    idx_left = LEFT_START
+    idx_right = RIGH_START
+
+    for i in range(0,num) :
+        #print('gaga')
+        strip.setPixelColor(idx_left + 0*LEFT_DIRECTION, COLOR_LEFT)
+        strip.setPixelColor(idx_left + 1*LEFT_DIRECTION, COLOR_LEFT)
+        strip.setPixelColor(idx_left + 2*LEFT_DIRECTION, COLOR_LEFT)
+        strip.setPixelColor(idx_left + 3*LEFT_DIRECTION, COLOR_BLACK)
+
+        strip.setPixelColor(idx_right + 0*RIGHT_DIRECTION, COLOR_RIGHT)
+        strip.setPixelColor(idx_right + 1*RIGHT_DIRECTION, COLOR_RIGHT)
+        strip.setPixelColor(idx_right + 2*RIGHT_DIRECTION, COLOR_RIGHT)
+        strip.setPixelColor(idx_right + 3*RIGHT_DIRECTION, COLOR_BLACK)
+
+        idx_left += 4*LEFT_DIRECTION
+        idx_right += 4*RIGHT_DIRECTION
+
+    strip.show()
+
+def led_show_score(num):
+    print('show score')
+
+    for i in range(1,num+1):
+        led_show_score_ani(i)
+        time.sleep(0.25)
+
+led_last_idle_index = 0
+
+def led_idle_step() :
+    global led_last_idle_index
+    global strip
+
+    strip.setPixelColor(led_last_idle_index, Color(0,0,0))
+    led_last_idle_index += 1;
+    if ( led_last_idle_index >= strip.numPixels() ) :
+        led_last_idle_index = 0
+    strip.setPixelColor(led_last_idle_index, Color(0,0,255))
+    strip.show()
+
+def led_idle_demo() :
+    for i in range(0,500) :
+        led_idle_step()
+        time.sleep(0.03)
+
+def led_idle_start() :
+    global led_show_idle
+    led_show_idle = 1
+
+def led_idle_stop() :
+    global led_show_idle
+    led_show_idle = 0
+    time.sleep(0.1)
+    strip.setPixelColor(led_last_idle_index, Color(0,0,0))
+
+def led_idle_demo_thread() :
+
+    led_idle_start()
+    time.sleep(5)
+    led_idle_stop()
+
+
+
+
+# Main program logic follows:
+if __name__ == '__main__':
+    led_setup()
+    # led_demo()
+    # led_event_correct()
+    # led_event_incorrect()
+
+    #led_show_score(5)
+
+    #led_idle_demo()
+    led_idle_demo_thread()
+    
+        
+    time.sleep(2)
+
+
+# ToDo
+# 
