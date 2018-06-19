@@ -7,10 +7,34 @@ from neopixel import *
 import atexit
 import time
 import thread
+import os
 
 strip = None
 
-led_background_task = 0 # 1=busy 2=idle
+led_background_task = 0 # 1=busy 2=idle 3=net down
+led_last_network_check = 0
+led_last_keepalive_time = 0
+
+def led_do_network_check() :
+    global led_last_network_check
+    global led_background_task
+
+    now = time.time()
+    if now < led_last_network_check + 30:
+        return
+    print 'do network check'
+    led_last_network_check = now
+
+    response = os.system("/bin/ping -q -c 1 -s 1 -W 1 8.8.8.8 >/dev/null 2>&1")
+
+    if response == 0:
+      print 'up!'
+    else:
+      print 'down!'
+      if led_background_task == 2:
+          led_background_task = 3
+          print('net down led')
+
 
 def led_test_idle_stop():
     global led_background_task
@@ -95,25 +119,46 @@ def led_idle_animation():
     
     while True:
         print('running idle')
+
         theaterChase(strip, Color(127, 127, 127))  # White theater chase
+        led_do_network_check()
         if led_test_idle_stop(): return
+
         theaterChase(strip, Color(127,   0,   0))  # Red theater chase
+        led_do_network_check()
         if led_test_idle_stop(): return
+
         theaterChase(strip, Color(  0,   0, 127))  # Blue theater chase
+        led_do_network_check()
         if led_test_idle_stop(): return
+
         rainbow(strip)
+        led_do_network_check()
         if led_test_idle_stop(): return
+
         rainbowCycle(strip)
+        led_do_network_check()
         if led_test_idle_stop(): return
+
         theaterChaseRainbow(strip)
+        led_do_network_check()
+        if led_test_idle_stop(): return
 
 def led_idle_thread() :
     global strip
     global led_background_task
+    global led_last_keepalive_time
     
     print('in idle thread')
 
     while True:
+        now = time.time()
+        if now - led_last_keepalive_time > 60: # 60 seconds max for answer
+            if led_background_task < 2:
+                led_background_task = 2
+                print('force idle - timeout')
+
+
         if led_background_task == 1 :
             #print('gaga')
             led_busy_step()
@@ -121,6 +166,8 @@ def led_idle_thread() :
         elif led_background_task == 2 :
             led_idle_animation()
             print('idle stopped')
+        elif led_background_task == 3 :
+            led_set_color(Color(0, 20, 0))
         else:
             time.sleep(0.5)
 
@@ -190,8 +237,8 @@ def led_show_score_ani(num):
     print(num)
 
     COLOR_BLACK = Color(0,0,0)
-    COLOR_LEFT = Color(255,0,0)
-    COLOR_RIGHT = Color(0,255,0)
+    COLOR_LEFT = Color(0,0,255)
+    COLOR_RIGHT = Color(0,0,255)
 
     LEFT_START = 30
     RIGH_START = 29
@@ -206,20 +253,26 @@ def led_show_score_ani(num):
         strip.setPixelColor(idx_left + 0*LEFT_DIRECTION, COLOR_LEFT)
         strip.setPixelColor(idx_left + 1*LEFT_DIRECTION, COLOR_LEFT)
         strip.setPixelColor(idx_left + 2*LEFT_DIRECTION, COLOR_LEFT)
-        strip.setPixelColor(idx_left + 3*LEFT_DIRECTION, COLOR_BLACK)
+        strip.setPixelColor(idx_left + 3*LEFT_DIRECTION, COLOR_LEFT)
+        strip.setPixelColor(idx_left + 4*LEFT_DIRECTION, COLOR_LEFT)
+        strip.setPixelColor(idx_left + 5*LEFT_DIRECTION, COLOR_BLACK)
 
         strip.setPixelColor(idx_right + 0*RIGHT_DIRECTION, COLOR_RIGHT)
         strip.setPixelColor(idx_right + 1*RIGHT_DIRECTION, COLOR_RIGHT)
         strip.setPixelColor(idx_right + 2*RIGHT_DIRECTION, COLOR_RIGHT)
-        strip.setPixelColor(idx_right + 3*RIGHT_DIRECTION, COLOR_BLACK)
+        strip.setPixelColor(idx_right + 3*RIGHT_DIRECTION, COLOR_RIGHT)
+        strip.setPixelColor(idx_right + 4*RIGHT_DIRECTION, COLOR_RIGHT)
+        strip.setPixelColor(idx_right + 5*RIGHT_DIRECTION, COLOR_BLACK)
 
-        idx_left += 4*LEFT_DIRECTION
-        idx_right += 4*RIGHT_DIRECTION
+        idx_left += 6*LEFT_DIRECTION
+        idx_right += 6*RIGHT_DIRECTION
 
     strip.show()
 
 def led_show_score(num):
     print('show score')
+
+    led_set_color(Color(0, 0, 0))
 
     for i in range(1,num+1):
         led_show_score_ani(i)
@@ -244,24 +297,33 @@ def led_busy_demo() :
         time.sleep(0.03)
 
 def led_busy_start() :
+    global strip
+
     global led_background_task
     led_background_task = 1
+    led_set_color(Color(0, 0, 0))
 
 def led_busy_stop() :
     global led_background_task
     led_background_task = 0
     time.sleep(0.1)
     strip.setPixelColor(led_last_busy_index, Color(0,0,0))
+    strip.show()
 
 def led_idle_start() :
     global led_background_task
+    led_set_color(Color(0, 0, 0))
     led_background_task = 2
 
 def led_idle_stop() :
     global led_background_task
     led_background_task = 0
+    time.sleep(0.5)
     led_set_color(Color(0, 0, 0))
 
+def led_keepalive() :
+    global led_last_keepalive_time
+    led_last_keepalive_time = time.time()
 
 def led_busy_demo_thread() :
 
@@ -275,7 +337,11 @@ def led_idle_demo() :
     time.sleep(20)
     led_idle_stop()
 
-
+def led_net_test() :
+    while True:
+        led_do_network_check()
+        time.sleep(1)
+        
 
 
 # Main program logic follows:
@@ -290,7 +356,8 @@ if __name__ == '__main__':
     #led_busy_demo()
     #led_busy_demo_thread()
     
-    led_idle_demo()
+    #led_idle_demo()
+    led_net_test()
 
     time.sleep(2)
 

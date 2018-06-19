@@ -1,0 +1,17 @@
+[Unit]
+Description=Vollpfosen
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/pi/src/quiz_pfosten
+ExecStart=/home/pi/src/quiz_pfosten/run.sh
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

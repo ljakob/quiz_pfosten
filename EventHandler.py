@@ -40,36 +40,63 @@ def event_loop():
             continue
         score = int(json_message['score'])
 
-        handle_event(quiz_event, score)
+        if 'gameOver' not in json_message:
+            print("Warning: event handler dit not receive gameOver")
+            continue
+        game_over = json_message['gameOver']
 
-def handle_event(quiz_event, score):
-    print("Receveived quiz_event=" + quiz_event + " with score=" + str(score))
+        handle_event(quiz_event, score, game_over)
+
+def handle_event(quiz_event, score, game_over):
+    print("Receveived quiz_event=" + quiz_event + " with score=" + str(score) + " with game_over=" + str(game_over))
     quiz_event = '' + quiz_event
-    print(len(quiz_event))
+
+    if game_over:
+        print ('over')
+    else:
+        print ('not over')
+
     if quiz_event == 'start':
         print("start")
+        LedAnimation.led_keepalive()
         LedAnimation.led_idle_stop()
         LedAnimation.led_busy_start()
 
     elif quiz_event == 'end':
         print("end")
+        LedAnimation.led_keepalive()
+        #LedAnimation.led_show_score_ani(score)
+	time.sleep(10)
         LedAnimation.led_idle_start()
 
     elif quiz_event == 'correct':
-        print("correct")
+        LedAnimation.led_keepalive()
         LedAnimation.led_busy_stop()
         LedAnimation.led_event_correct()
         LedAnimation.led_show_score_ani(score)
-	time.sleep(2)
-        LedAnimation.led_busy_start()
+        if not game_over:
+            print("correct")
+	    time.sleep(5)
+            LedAnimation.led_busy_start()
+        else:
+            print("correct over")
+            time.sleep(10)
+            LedAnimation.led_idle_start()
 
     elif quiz_event == 'incorrect':
-        print("incorrect")
+        LedAnimation.led_keepalive()
         LedAnimation.led_busy_stop()
         LedAnimation.led_event_incorrect()
         LedAnimation.led_show_score_ani(score)
-	time.sleep(2)
-        LedAnimation.led_busy_start()
+        if not game_over:
+            print("incorrect")
+	    time.sleep(5)
+            LedAnimation.led_busy_start()
+        else:
+            print("incorrect over")
+            time.sleep(10)
+            LedAnimation.led_idle_start()
+
     else:
         print("Warning: unknown event received")
     print("Event processing done.")
